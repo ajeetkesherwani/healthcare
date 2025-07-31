@@ -19,10 +19,8 @@ const {
 router.post(
   "/register",
   fileUploader("vendor", [
-    { name: "profileImg", maxCount: 1 },
-    { name: "panImages", maxCount: 1 },
-    { name: "shopImages", maxCount: 1 },
-    { name: "digitalSignature", maxCount: 1 },
+    { name: "profileImage", maxCount: 1 },
+    { name: "certificate", maxCount: 1 },
   ]),
   signUp
 );

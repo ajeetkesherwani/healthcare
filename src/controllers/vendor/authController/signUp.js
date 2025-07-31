@@ -1,139 +1,118 @@
 const Vendor = require("../../../models/vendor");
 const AppError = require("../../../utils/AppError");
 const catchAsync = require("../../../utils/catchAsync");
-const bcrypt = require("bcrypt");
+const { successResponse } = require("../../../utils/responseHandler");
+const validateRequiredFields = require("../../../utils/validateRequiredFields");
 
-function generateShopId(shopName) {
-  const shopPrefix = shopName.slice(0, 5).toUpperCase().padEnd(5, "A");
-  const randomDigits = Math.floor(10000 + Math.random() * 90000);
-  const shopId = `${shopPrefix}${randomDigits}`;
-
-  return shopId;
-}
-
-const processImages = (files, fieldName) => {
-  if (files && files[fieldName]) {
-    if (Array.isArray(files[fieldName])) {
-      return files[fieldName].map((file) => file.path);
-    } else {
-      return [files[fieldName].path];
-    }
+// Image handler
+const processSingleImage = (files, fieldName) => {
+  if (files && files[fieldName] && files[fieldName][0]) {
+    return files[fieldName][0].path;
   }
-  return [];
-};
-
-const validateRequiredField = (field, fieldName) => {
-  if (!field || !field.trim())
-    return new AppError(`${fieldName} is required.`, 400);
-  return null;
+  return "";
 };
 
 exports.signUp = catchAsync(async (req, res, next) => {
-  let {
-    shopName,
-    serviceId,
-    shopNumber,
-    shopAddress,
-    city,
-    landmark,
-    pinCode,
+  const {
+    Name,
     mobile,
-    isGstRegistered,
-    gstNo,
-    ownerName,
-    email,
-    panNo,
-    fullNameOnPan,
-    accountNo,
-    ifsc,
-    bankName,
-    holderName,
-    accountType,
-    commission,
-    wallet_balance,
+    dob,
+    gender,
+    category,
+    qualification,
+    type, // doctor / ambulance / other
+    address,
+    department,
+    yearOfExp,
+    licOrRegNumber,
+    state,
+    district,
+    pincode,
+    inClinicAvaialble,
+    videoConsultAvailable,
+    inClinicFee,
+    videoConsultFee,
+    symptoms,
   } = req.body;
 
-  const files = req.files;
-
-  // Process images
-  const profileImg = processImages(files, "profileImg")[0] || ""; // single image field
-  const shopImages = processImages(files, "shopImages"); // multiple images field
-  const panImages = processImages(files, "panImages"); // multiple images field
-  const digitalSignature = processImages(files, "digitalSignature")[0] || ""; // single image field
+  // ✅ Validate required fields
+  if (!Name || !Name.trim()) return next(new AppError("Name is required", 400));
+  if (!mobile || !mobile.trim())
+    return next(new AppError("Mobile is required", 400));
+  if (!gender || !["male", "female", "other"].includes(gender))
+    return next(new AppError("Valid gender is required", 400));
+  if (!qualification || !qualification.trim())
+    return next(new AppError("Qualification is required", 400));
 
   const requiredFields = [
-    { field: shopName, name: "Shop Name" },
-    { field: serviceId, name: "Service ID" },
-    { field: shopNumber, name: "Shop Number" },
-    { field: shopAddress, name: "Shop Address" },
-    { field: city, name: "City" },
-    { field: landmark, name: "Landmark" },
-    { field: pinCode, name: "Pincode" },
-    { field: isGstRegistered, name: "GST Registration Status" },
-    { field: gstNo, name: "GST Number" },
+    { field: Name, name: "Name" },
     { field: mobile, name: "Mobile Number" },
-    { field: ownerName, name: "Owner Name" },
-    { field: email, name: "Email" },
-    { field: panNo, name: "PAN Number" },
-    { field: fullNameOnPan, name: "Full Name on PAN" },
-    { field: accountNo, name: "Account Number" },
-    { field: ifsc, name: "IFSC Code" },
-    { field: bankName, name: "Bank Name" },
-    { field: holderName, name: "Account Holder Name" },
-    { field: accountType, name: "Account Type" },
-    { field: digitalSignature, name: "Digital Signature" },
+    { field: gender, name: "Gender" },
+    { field: qualification, name: "Qualification" },
+    { field: category, name: "Category" },
+    { field: yearOfExp, name: "Year of experience" },
   ];
 
-  for (const { field, name } of requiredFields) {
-    const error = validateRequiredField(field, name);
-    if (error) return next(error);
-  }
+  // ✅ Centralized validation
+  validateRequiredFields(requiredFields, next);
 
-  const existingMobile = await Vendor.findOne({ mobile });
-  if (existingMobile)
-    return next(
-      new AppError(
-        "Mobile number already exists. Please use a different one.",
-        400
-      )
-    );
+  const files = req.files;
+  const profileImage = processSingleImage(files, "profileImage");
+  const certificate = processSingleImage(files, "certificate");
 
-  shopId = generateShopId(shopName);
-  console.log("Generated Shop ID:", shopId);
+  // ✅ Build vendor data object
+  const vendorData = {
+    Name,
+    dob,
+    gender,
+    category,
+    qualification,
+    type: type || "other",
+    address,
+    department,
+    yearOfExp,
+    licOrRegNumber,
+    certificate,
+    profileImage,
+    state,
+    district,
+    pincode,
+    inClinicAvaialble: inClinicAvaialble || false,
+    videoConsultAvailable: videoConsultAvailable || false,
+    inClinicFee: inClinicFee || 0,
+    videoConsultFee: videoConsultFee || 0,
+    symptoms,
+  };
 
-  const newVendor = await Vendor.create({
-    shopName,
-    shopId,
-    serviceId,
-    shopNumber,
-    shopAddress,
-    city,
-    landmark,
-    pinCode,
-    mobile,
-    email,
-    isGstRegistered,
-    gstNo,
-    ownerName,
-    panNo,
-    fullNameOnPan,
-    panImages,
-    commission: commission || 0,
-    wallet_balance: wallet_balance || 0,
-    accountNo,
-    ifsc,
-    bankName,
-    holderName,
-    accountType,
-    profileImg,
-    shopImages,
-    digitalSignature,
-    agreementAccepted: true,
+  // Remove undefined or empty fields from vendorData
+  Object.keys(vendorData).forEach((key) => {
+    if (
+      vendorData[key] === undefined ||
+      vendorData[key] === null ||
+      vendorData[key] === ""
+    ) {
+      delete vendorData[key];
+    }
   });
 
-  return res.status(201).json({
-    success: true,
-    message: "Vendor registered successfully.",
-    vendor: newVendor,
+  // ✅ Check if vendor exists
+  const existingVendor = await Vendor.findOne({ mobile });
+
+  let resultVendor;
+  if (existingVendor) {
+    // ✅ Update existing vendor
+    resultVendor = await Vendor.findOneAndUpdate(
+      { mobile },
+      { $set: vendorData },
+      { new: true }
+    );
+  } else {
+    // ✅ Create new vendor
+    vendorData.mobile = mobile;
+    resultVendor = await Vendor.create(vendorData);
+  }
+
+  return successResponse(res, "Vendor registered or updated successfully", {
+    vendor: resultVendor,
   });
 });

@@ -5,17 +5,11 @@ const router = express.Router();
 router.use("/auth", require("./admin/authRoutes"));
 router.use("/category", require("./admin/categoryRoutes"));
 router.use("/symptom", require("./admin/SymptomRoutes"));
-
-
-
-
-
-
+router.use("/vendor", require("./admin/vendorRoutes"));
 
 router.use("/fabric", require("./admin/fabricRoutes"));
 router.use("/product", require("./admin/productRoutes"));
 router.use("/varient", require("./admin/variantRoutes"));
-router.use("/vendor", require("./admin/vendorRoutes"));
 router.use("/service", require("./admin/serviceRoutes"));
 router.use("/dealsOfTheDay", require("./admin/dealsRoutes"));
 router.use("/productVarient", require("./admin/productVariantRoutes"));

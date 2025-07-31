@@ -20,6 +20,7 @@ const {
 } = require("../../controllers/admin/vendorController/getDataById");
 
 router.get("/list", adminAuthenticate, getVendorList);
+router.get("/getDataById/:id", adminAuthenticate, getDataById);
 
 router.post(
   "/create",
@@ -40,5 +41,5 @@ router.patch(
   adminAuthenticate,
   updateVendor
 );
-router.get("/getDataById/:id", adminAuthenticate, getDataById);
+
 module.exports = router;

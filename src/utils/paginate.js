@@ -17,8 +17,8 @@ module.exports = async function paginate(model, query = {}, options = {}) {
     status: true,
     currentPage: page,
     totalPages: Math.ceil(totalDocuments / limit),
-    totalResults: totalDocuments,
-    results: results.length,
-    data: results,
+    totalData: totalDocuments,
+    currentData: results.length,
+    result: results,
   };
 };

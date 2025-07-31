@@ -14,24 +14,25 @@ const createToken = (user, statusCode, res, verify = false) => {
     res.cookie("xcvbexamstons", token, cookieOptions);
 
     res.status(statusCode).json({
-      status: true,
+      success: true,
       token,
       data: {
         user,
       },
     });
   }
-
+  console.log(verify);
   if (verify) {
     res.cookie("sfvbexamstons", token, cookieOptions);
 
     res.status(statusCode).json({
-      status: true,
+      success: true,
       message: "Otp verify Successfully.",
       token,
       data: {
         user,
       },
+      isRegistered: verify.isRegistered,
     });
   }
 };

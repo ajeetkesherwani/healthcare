@@ -7,13 +7,17 @@ const {
 } = require("../../../utils/responseHandler");
 
 exports.sendOtp = catchAsync(async (req, res, next) => {
-  let { mobile } = req.body;
-  if (!mobile) return next(new AppError("mobile field are required.", 400));
+  let { mobile, countryCode } = req.body;
 
-  const otp = "1234"; // You can replace with random OTP logic
-  const otpExpires = Date.now() + 10 * 60 * 1000; // 10 minutes from now
+  if (!mobile) return next(new AppError("mobile field is required.", 400));
+  if (!countryCode)
+    return next(new AppError("countryCode field is required.", 400));
 
-  let vendor = await Vendor.findOne({ mobile });
+  const otp = "1234"; // Replace with real OTP generation in production
+  const otpExpires = Date.now() + 10 * 60 * 1000; // OTP valid for 10 minutes
+
+  let vendor = await Vendor.findOne({ mobile, countryCode });
+
   if (vendor) {
     vendor.otp = otp;
     vendor.otpExpires = otpExpires;
@@ -21,14 +25,16 @@ exports.sendOtp = catchAsync(async (req, res, next) => {
   } else {
     vendor = await Vendor.create({
       mobile,
+      countryCode,
       otp,
       otpExpires,
     });
   }
 
-  // await sendSms(vendor.mobile, `Your OTP is ${otp}`);
+  // Optionally send SMS
+  // await sendSms(`${countryCode}${mobile}`, `Your OTP is ${otp}`);
 
   successResponse(res, "OTP sent successfully", {
-    otp: process.env.NODE_ENV === "development" ? otp : "1234", // Only send OTP in dev mode
+    otp: process.env.NODE_ENV === "development" ? otp : "1234", // Mask OTP outside dev
   });
 });
