@@ -7,6 +7,8 @@ router.use("/category", require("./admin/categoryRoutes"));
 router.use("/symptom", require("./admin/SymptomRoutes"));
 router.use("/vendor", require("./admin/vendorRoutes"));
 
+//===================== Currently not in use =====================//
+router.use("/user", require("./admin/userRoutes"));
 router.use("/fabric", require("./admin/fabricRoutes"));
 router.use("/product", require("./admin/productRoutes"));
 router.use("/varient", require("./admin/variantRoutes"));

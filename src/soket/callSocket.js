@@ -5,24 +5,81 @@ const appointmentService = require("../services/appointmentService");
 module.exports = function (io) {
   io.on("connection", (socket) => {
     const user = socket.user; // set via auth middleware
-    const userId = user.userId;
+    console.log("user", user);
+    const userId = user.id;
 
     console.log("Socket connected:", socket.id, "User ID:", userId);
 
     socket.on("join-call", async ({ appointmentId }) => {
-      const isValid = await appointmentService.isValidAppointment(appointmentId, userId);
-      const isEnded = await callState.isCallEnded(appointmentId);
+      try {
+        console.log(`${userId} joined appointment ${appointmentId}`);
+        const appoitment = await appointmentService.isValidAppointment(
+          appointmentId,
+          userId
+        );
 
-      if (!isValid || isEnded) {
-        socket.emit("join-denied", { reason: isEnded ? "call-ended" : "unauthorized" });
-        return;
+        if (!appointment) {
+          return socket.emit("call-error", {
+            message: "Appointment not found.",
+          });
+        }
+
+        const appointmentDateStr = appointment.appointmentDate; // e.g., "2025-08-06T00:00:00.000+00:00"
+        const timeSlot = appointment.timeSlot; // e.g., "11:35 - 11:50"
+
+        // Parse appointment date and time slot
+        const [startTimeStr, endTimeStr] = timeSlot.split(" - "); // "11:35", "11:50"
+
+        const now = new Date(); // current server time (make sure to handle timezone if needed)
+        const appointmentDate = new Date(appointmentDateStr);
+
+        // Set actual start and end times on appointmentDate
+        const [startHour, startMinute] = startTimeStr.split(":").map(Number);
+        const [endHour, endMinute] = endTimeStr.split(":").map(Number);
+
+        const slotStart = new Date(appointmentDate);
+        slotStart.setUTCHours(startHour, startMinute, 0, 0);
+
+        const slotEnd = new Date(appointmentDate);
+        slotEnd.setUTCHours(endHour, endMinute, 0, 0);
+
+        if (now < slotStart) {
+          return socket.emit("call-error", {
+            message: "Call hasn't started yet.",
+          });
+        }
+
+        if (now > slotEnd) {
+          return socket.emit("call-error", {
+            message: "Call window has expired.",
+          });
+        }
+
+        // Proceed to join room if valid
+        socket.join(appointmentId);
+        socket.emit("call-joined", {
+          message: "Successfully joined the call.",
+        });
+      } catch (error) {
+        console.error("Join call error:", error);
+        socket.emit("call-error", {
+          message: "Server error. Please try again.",
+        });
       }
+      // const isEnded = await callState.isCallEnded(appointmentId);
 
-      await callState.addUser(appointmentId, userId); // track in Redis
-      socket.join(appointmentId);
+      // if (!isValid || isEnded) {
+      //   socket.emit("join-denied", {
+      //     reason: isEnded ? "call-ended" : "unauthorized",
+      //   });
+      //   return;
+      // }
 
-      console.log(`${userId} joined appointment ${appointmentId}`);
-      io.to(appointmentId).emit("user-joined", { userId });
+      // await callState.addUser(appointmentId, userId); // track in Redis
+      // socket.join(appointmentId);
+
+      // console.log(`${userId} joined appointment ${appointmentId}`);
+      // io.to(appointmentId).emit("user-joined", { userId });
     });
 
     socket.on("call-heartbeat", async ({ appointmentId }) => {
@@ -66,7 +123,6 @@ module.exports = function (io) {
     }
   }, 15000);
 };
-
 
 // // socket/callSocket.js
 // const activeCallUsers = {}; // In-memory tracking
@@ -120,5 +176,3 @@ module.exports = function (io) {
 //     }
 //   }, 15000); // check every 15 seconds
 // };
-
-

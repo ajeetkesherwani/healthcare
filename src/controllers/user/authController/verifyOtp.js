@@ -3,15 +3,13 @@ const createToken = require("../../../utils/createToken");
 
 exports.verifyOtp = async (req, res) => {
   try {
-    const { mobileNo, otp, deviceInfo } = req.body;
+    const { mobileNo, otp, deviceInfo, fcmToken, deviceId } = req.body;
 
     if (!mobileNo || !otp)
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "Mobile number and OTP are required",
-        });
+      return res.status(400).json({
+        success: false,
+        message: "Mobile number and OTP are required",
+      });
 
     const user = await User.findOne({ mobileNo });
 
@@ -30,6 +28,8 @@ exports.verifyOtp = async (req, res) => {
 
     user.isVerified = true;
     user.lastLogin = new Date();
+    user.fcmToken = fcmToken;
+    user.deviceId = deviceId;
 
     // Optionally save device info
     // if (deviceInfo) user.deviceInfo = deviceInfo;
@@ -42,12 +42,10 @@ exports.verifyOtp = async (req, res) => {
     return createToken(user, 200, res);
   } catch (error) {
     console.error("Error in verifyOtp controller:", error);
-    return res
-      .status(500)
-      .json({
-        status: false,
-        message: "Internal server error",
-        error: error.message,
-      });
+    return res.status(500).json({
+      status: false,
+      message: "Internal server error",
+      error: error.message,
+    });
   }
 };

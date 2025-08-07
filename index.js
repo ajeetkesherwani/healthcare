@@ -17,14 +17,15 @@ const authMiddleware = require("./src/soket/authMiddleware"); // ✅ new import
 dotenv.config({ path: "config.env" });
 console.log("REDIS_URL from env:", process.env.REDIS_URL);
 const httpServer = http.createServer(app);
-const Redis = require('ioredis');
+const Redis = require("ioredis");
 const testRedis = new Redis(process.env.REDIS_URL);
 
-testRedis.ping()
-  .then(res => console.log("Redis ping from app:", res))
-  .catch(err => console.error("Redis ping failed in app:", err));
+testRedis
+  .ping()
+  .then((res) => console.log("Redis ping from app:", res))
+  .catch((err) => console.error("Redis ping failed in app:", err));
 
-
+// console.log("httpServer", httpServer);
 // ✅ Initialize Socket.IO
 const io = new Server(httpServer, {
   cors: {
@@ -40,6 +41,7 @@ console.log("Redis URL:", process.env.REDIS_URL);
 authMiddleware(io);
 setupCallSocket(io);
 
+require("./src/soket/joinNotifier")(io);
 app.use("/api", callRoutes);
 
 // (Optional) Keep your live-feed demo route
